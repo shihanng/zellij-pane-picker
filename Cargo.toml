@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 indexmap = "2.11.4"
 nucleo-matcher = "0.3.1"
-thiserror = "2.0.16"
+thiserror = "2.0.17"
 zellij-tile = "0.43.1"
 
 [dev-dependencies]
