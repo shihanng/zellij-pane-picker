@@ -672,9 +672,9 @@ mod tests {
 
     // Tests for show_starred_first feature
 
-    #[test]
-    fn starred_sorting_disabled() {
-        let mut state = State {
+    #[fixture]
+    fn three_pane_state(#[default(false)] show_starred_first: bool) -> State {
+        State {
             tab_infos: vec![TabInfo {
                 name: String::from("Tab"),
                 ..Default::default()
@@ -702,66 +702,31 @@ mod tests {
                     },
                 ],
             )]),
-            show_starred_first: false,
+            show_starred_first,
             ..Default::default()
-        };
-
-        // Star pane 2 (middle pane)
-        state.stars.toggle(PaneId::Terminal(2));
-        state.update_state();
-        state.panes_as_table(80);
-
-        // Verify: Order unchanged from natural order (tab/pane order)
-        assert_eq!(state.display_panes.len(), 3);
-        assert_eq!(state.display_panes[0].pane_id, PaneId::Terminal(1));
-        assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(2));
-        assert_eq!(state.display_panes[2].pane_id, PaneId::Terminal(3));
+        }
     }
 
-    #[test]
-    fn starred_first_empty_search() {
-        let mut state = State {
-            tab_infos: vec![TabInfo {
-                name: String::from("Tab"),
-                ..Default::default()
-            }],
-            pane_infos: HashMap::from([(
-                0,
-                vec![
-                    PaneInfo {
-                        id: 1,
-                        title: String::from("Pane 1"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                    PaneInfo {
-                        id: 2,
-                        title: String::from("Pane 2"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                    PaneInfo {
-                        id: 3,
-                        title: String::from("Pane 3"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                ],
-            )]),
-            show_starred_first: true,
-            ..Default::default()
-        };
-
-        // Star pane 3 (last pane)
-        state.stars.toggle(PaneId::Terminal(3));
+    #[rstest]
+    #[case::disabled(false, 2, vec![1, 2, 3])]
+    #[case::enabled(true, 3, vec![3, 1, 2])]
+    fn starred_pane_ordering(
+        #[case] show_starred_first: bool,
+        #[case] pane_to_star: u32,
+        #[case] expected_order: Vec<u32>,
+    ) {
+        let mut state = three_pane_state(show_starred_first);
+        state.stars.toggle(PaneId::Terminal(pane_to_star));
         state.update_state();
         state.panes_as_table(80);
 
-        // Verify: Starred pane appears first
-        assert_eq!(state.display_panes.len(), 3);
-        assert_eq!(state.display_panes[0].pane_id, PaneId::Terminal(3));
-        assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(1));
-        assert_eq!(state.display_panes[2].pane_id, PaneId::Terminal(2));
+        assert_eq!(state.display_panes.len(), expected_order.len());
+        for (i, expected_id) in expected_order.iter().enumerate() {
+            assert_eq!(
+                state.display_panes[i].pane_id,
+                PaneId::Terminal(*expected_id)
+            );
+        }
     }
 
     #[test]
@@ -811,40 +776,9 @@ mod tests {
         assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(1)); // vim editor (not starred)
     }
 
-    #[test]
-    fn selection_preserved_after_toggle() {
-        let mut state = State {
-            tab_infos: vec![TabInfo {
-                name: String::from("Tab"),
-                ..Default::default()
-            }],
-            pane_infos: HashMap::from([(
-                0,
-                vec![
-                    PaneInfo {
-                        id: 1,
-                        title: String::from("Pane 1"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                    PaneInfo {
-                        id: 2,
-                        title: String::from("Pane 2"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                    PaneInfo {
-                        id: 3,
-                        title: String::from("Pane 3"),
-                        is_selectable: true,
-                        ..Default::default()
-                    },
-                ],
-            )]),
-            show_starred_first: true,
-            ..Default::default()
-        };
-
+    #[rstest]
+    fn selection_preserved_after_toggle(#[with(true)] three_pane_state: State) {
+        let mut state = three_pane_state;
         state.update_state();
         state.panes_as_table(80);
 
