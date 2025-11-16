@@ -59,6 +59,7 @@ struct State {
 
     bound_key: bool,
     keybinds: keybind::Keybinds,
+    show_starred_first: bool,
 
     plugin_id: Option<u32>,
 }
@@ -150,9 +151,26 @@ impl State {
         let pane_title_width = width - (star.len() + 1 + tab_name_width + 1 + 3);
 
         let mut matcher = Matcher::new(Config::DEFAULT.match_paths());
-        let search_result =
+        let mut search_result =
             Pattern::parse(&self.search_key, CaseMatching::Ignore, Normalization::Smart)
                 .match_list(&self.panes, &mut matcher);
+
+        // Track selected pane before rebuilding display_panes for selection preservation
+        let selected_pane_id = self.display_panes.get(self.selected).map(|p| p.pane_id);
+
+        // Sort by starred status if configured
+        if self.show_starred_first {
+            search_result.sort_by(|(pane_a, score_a), (pane_b, score_b)| {
+                let starred_a = self.stars.has(&pane_a.pane_id);
+                let starred_b = self.stars.has(&pane_b.pane_id);
+
+                match (starred_a, starred_b) {
+                    (true, false) => std::cmp::Ordering::Less, // A starred → A first
+                    (false, true) => std::cmp::Ordering::Greater, // B starred → B first
+                    _ => score_b.cmp(score_a), // Same status → sort by score (descending)
+                }
+            });
+        }
 
         self.display_panes = search_result
             .iter()
@@ -160,6 +178,17 @@ impl State {
                 Pane::new(pane.tab_name.clone(), pane.pane_id, pane.pane_title.clone())
             })
             .collect();
+
+        // Restore selection to same pane after sorting
+        if self.display_panes.is_empty() {
+            self.selected = 0;
+        } else if let Some(pane_id) = selected_pane_id {
+            self.selected = self
+                .display_panes
+                .iter()
+                .position(|p| p.pane_id == pane_id)
+                .unwrap_or(0); // Fallback if pane disappeared
+        }
 
         let mut table = Table::new().add_row(vec![
             " ",
@@ -236,6 +265,11 @@ register_plugin!(State);
 
 impl ZellijPlugin for State {
     fn load(&mut self, configuration: BTreeMap<String, String>) {
+        self.show_starred_first = configuration
+            .get("show_starred_first")
+            .and_then(|s| s.parse::<bool>().ok())
+            .unwrap_or(false);
+
         self.keybinds = keybind::Keybinds::try_from(configuration).unwrap();
         self.plugin_id = Some(get_plugin_ids().plugin_id);
 
@@ -634,5 +668,220 @@ mod tests {
     fn clip_text(#[case] text: &str, #[case] max_len: usize, #[case] expected: String) {
         let got = clip(text, max_len);
         assert_eq!(expected, got);
+    }
+
+    // Tests for show_starred_first feature
+
+    #[test]
+    fn starred_sorting_disabled() {
+        let mut state = State {
+            tab_infos: vec![TabInfo {
+                name: String::from("Tab"),
+                ..Default::default()
+            }],
+            pane_infos: HashMap::from([(
+                0,
+                vec![
+                    PaneInfo {
+                        id: 1,
+                        title: String::from("Pane 1"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 2,
+                        title: String::from("Pane 2"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 3,
+                        title: String::from("Pane 3"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                ],
+            )]),
+            show_starred_first: false,
+            ..Default::default()
+        };
+
+        // Star pane 2 (middle pane)
+        state.stars.toggle(PaneId::Terminal(2));
+        state.update_state();
+        state.panes_as_table(80);
+
+        // Verify: Order unchanged from natural order (tab/pane order)
+        assert_eq!(state.display_panes.len(), 3);
+        assert_eq!(state.display_panes[0].pane_id, PaneId::Terminal(1));
+        assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(2));
+        assert_eq!(state.display_panes[2].pane_id, PaneId::Terminal(3));
+    }
+
+    #[test]
+    fn starred_first_empty_search() {
+        let mut state = State {
+            tab_infos: vec![TabInfo {
+                name: String::from("Tab"),
+                ..Default::default()
+            }],
+            pane_infos: HashMap::from([(
+                0,
+                vec![
+                    PaneInfo {
+                        id: 1,
+                        title: String::from("Pane 1"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 2,
+                        title: String::from("Pane 2"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 3,
+                        title: String::from("Pane 3"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                ],
+            )]),
+            show_starred_first: true,
+            ..Default::default()
+        };
+
+        // Star pane 3 (last pane)
+        state.stars.toggle(PaneId::Terminal(3));
+        state.update_state();
+        state.panes_as_table(80);
+
+        // Verify: Starred pane appears first
+        assert_eq!(state.display_panes.len(), 3);
+        assert_eq!(state.display_panes[0].pane_id, PaneId::Terminal(3));
+        assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(1));
+        assert_eq!(state.display_panes[2].pane_id, PaneId::Terminal(2));
+    }
+
+    #[test]
+    fn starred_first_with_search() {
+        let mut state = State {
+            tab_infos: vec![TabInfo {
+                name: String::from("Tab"),
+                ..Default::default()
+            }],
+            pane_infos: HashMap::from([(
+                0,
+                vec![
+                    PaneInfo {
+                        id: 1,
+                        title: String::from("vim editor"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 2,
+                        title: String::from("neovim"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 3,
+                        title: String::from("bash"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                ],
+            )]),
+            show_starred_first: true,
+            search_key: String::from("vim"),
+            ..Default::default()
+        };
+
+        // Star the neovim pane (id 2)
+        state.stars.toggle(PaneId::Terminal(2));
+        state.update_state();
+        state.panes_as_table(80);
+
+        // Verify: Starred match appears before unstarred matches
+        // Both "vim editor" and "neovim" match "vim", but neovim is starred
+        assert_eq!(state.display_panes.len(), 2);
+        assert_eq!(state.display_panes[0].pane_id, PaneId::Terminal(2)); // neovim (starred)
+        assert_eq!(state.display_panes[1].pane_id, PaneId::Terminal(1)); // vim editor (not starred)
+    }
+
+    #[test]
+    fn selection_preserved_after_toggle() {
+        let mut state = State {
+            tab_infos: vec![TabInfo {
+                name: String::from("Tab"),
+                ..Default::default()
+            }],
+            pane_infos: HashMap::from([(
+                0,
+                vec![
+                    PaneInfo {
+                        id: 1,
+                        title: String::from("Pane 1"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 2,
+                        title: String::from("Pane 2"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                    PaneInfo {
+                        id: 3,
+                        title: String::from("Pane 3"),
+                        is_selectable: true,
+                        ..Default::default()
+                    },
+                ],
+            )]),
+            show_starred_first: true,
+            ..Default::default()
+        };
+
+        state.update_state();
+        state.panes_as_table(80);
+
+        // Select pane 2 (index 1)
+        state.selected = 1;
+        assert_eq!(
+            state.display_panes[state.selected].pane_id,
+            PaneId::Terminal(2)
+        );
+
+        // Toggle star on selected pane - it should move to index 0
+        state.stars.toggle(PaneId::Terminal(2));
+        state.panes_as_table(80);
+
+        // Verify: Selection followed the pane to new position
+        assert_eq!(
+            state.display_panes[state.selected].pane_id,
+            PaneId::Terminal(2)
+        );
+        assert_eq!(state.selected, 0); // Moved to first position
+    }
+
+    #[test]
+    fn selection_reset_when_display_panes_empty() {
+        let mut state = State {
+            tab_infos: vec![],
+            pane_infos: HashMap::new(),
+            show_starred_first: true,
+            selected: 5, // Simulate out-of-bounds selection
+            ..Default::default()
+        };
+
+        state.update_state();
+        state.panes_as_table(80);
+
+        // Verify: Selection is reset to 0 when display_panes is empty
+        assert_eq!(state.display_panes.len(), 0);
+        assert_eq!(state.selected, 0);
     }
 }

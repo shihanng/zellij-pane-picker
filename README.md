@@ -111,6 +111,28 @@ load_plugins {
 }
 ```
 
+### Configuration Options
+
+#### Show Starred Panes First
+
+Add `show_starred_first "true"` to display starred panes at the top of the picker list:
+
+```kdl
+load_plugins {
+    "https://github.com/shihanng/zellij-pane-picker/releases/download/v0.6.0/zellij-pane-picker.wasm" {
+        show_starred_first "true"
+        list_panes "Alt y"
+    }
+}
+```
+
+When enabled, starred panes appear at the top of both the full list (empty search)
+and filtered search results. Within each group (starred/unstarred), panes are sorted
+by fuzzy match score. This is useful when you frequently access certain panes and want
+to eliminate scrolling through the full list.
+
+**Default:** `"false"` (disabled)
+
 <!-- markdownlint-enable MD013 -->
 
 ## Development
