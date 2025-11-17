@@ -16,6 +16,7 @@ resource "github_repository" "this" {
   has_issues             = true
   has_projects           = true
   vulnerability_alerts   = true
+  allow_update_branch    = true
 }
 
 terraform {
