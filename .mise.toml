@@ -2,7 +2,7 @@
 idiomatic_version_file = false
 
 [tools]
-"aqua:hashicorp/terraform" = "1.11"
+"aqua:hashicorp/terraform" = "1.13.5"
 "aqua:nektos/act" = "0.2.78"
 "aqua:pre-commit/pre-commit" = "4.2.0"
 "aqua:terraform-linters/tflint" = "0.58"
