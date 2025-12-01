@@ -11,5 +11,5 @@ thiserror = "2.0.17"
 zellij-tile = "0.43.1"
 
 [dev-dependencies]
-insta = "1.44.1"
+insta = "1.44.3"
 rstest = "0.26.1"
