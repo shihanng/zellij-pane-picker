@@ -279,7 +279,7 @@ impl ZellijPlugin for State {
                 } else if Some(key.clone()) == self.keybinds.plugin_select_up {
                     self.select_upward()
                 } else if Some(key.clone()) == self.keybinds.plugin_navigate_to {
-                    focus_pane_with_id(self.display_panes[self.selected].pane_id, true);
+                    focus_pane_with_id(self.display_panes[self.selected].pane_id, true, false);
                     self.search_key.clear();
                     hide_self();
                 } else if Some(key.clone()) == self.keybinds.plugin_hide {
@@ -307,7 +307,7 @@ impl ZellijPlugin for State {
                 show_self(true);
             } else if pipe_message.name == keybind::NAVIGATE_BACK {
                 if let Some(id) = self.previous_focus {
-                    focus_pane_with_id(id, true);
+                    focus_pane_with_id(id, true, false);
                 }
             } else if pipe_message.name == keybind::TOGGLE_STAR {
                 if let Some(pane_id) = self.current_focus {
@@ -316,13 +316,13 @@ impl ZellijPlugin for State {
             } else if pipe_message.name == keybind::NEXT_STAR {
                 if let Some(pane_id) = self.current_focus {
                     if let Some(id) = self.stars.next(&pane_id) {
-                        focus_pane_with_id(*id, true);
+                        focus_pane_with_id(*id, true, false);
                     }
                 }
             } else if pipe_message.name == keybind::PREV_STAR {
                 if let Some(pane_id) = self.current_focus {
                     if let Some(id) = self.stars.previous(&pane_id) {
-                        focus_pane_with_id(*id, true);
+                        focus_pane_with_id(*id, true, false);
                     }
                 }
             }
