@@ -66,6 +66,8 @@ Use `Alt o` to toggle between two panes.
 
 ### Global Keybindings
 
+<!-- markdownlint-disable MD013 -->
+
 | Keybinding | Description                                    | Config Key      |
 | ---------- | ---------------------------------------------- | --------------- |
 | Alt y      | Open plugin pane and lists all available panes | `list_panes`    |
@@ -73,8 +75,6 @@ Use `Alt o` to toggle between two panes.
 | Alt l      | Star/unstar the focused pane                   | `toggle_star`   |
 | Alt i      | Navigate to next starred pane                  | `next_star`     |
 | Alt u      | Navigate to previous starred pane              | `previous_star` |
-
-<!-- markdownlint-disable MD013 -->
 
 ### Plugin Keybindings
 
@@ -134,4 +134,25 @@ when installing the toolings.
 ```shell
 export GITHUB_TOKEN=$(gh auth token)
 just run-ci-local
+```
+
+### Testing the build
+
+Run `cargo build` to build the binary.
+You should then find the artifact at the following path:
+
+```shell
+ls target/wasm32-wasip1/debug/zellij-pane-picker.wasm
+```
+
+In the Zellij config file, point the plugin location to the built `.wasm` file:
+
+```kdl
+plugins {
+    ...
+    zellij-pane-picker location="file://<full-path-to-wasm>" {
+        ...
+    }
+    ...
+}
 ```
