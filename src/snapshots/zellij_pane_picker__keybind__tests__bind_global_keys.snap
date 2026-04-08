@@ -2,6 +2,7 @@
 source: src/keybind.rs
 expression: "got_configs.join(\"\")"
 ---
+
         keybinds {
             "normal" {
                 bind "Alt y" {
