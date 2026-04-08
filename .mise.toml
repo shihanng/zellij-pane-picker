@@ -6,5 +6,6 @@ idiomatic_version_file = false
 "aqua:nektos/act" = "0.2.78"
 "aqua:pre-commit/pre-commit" = "4.2.0"
 "aqua:terraform-linters/tflint" = "0.58"
+"cargo:cargo-insta" = "1.47.2"
 "cargo:cargo-tarpaulin" = "0.32.7"
 "ubi:casey/just" = "1.40.0"
