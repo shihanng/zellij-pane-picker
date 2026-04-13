@@ -15,7 +15,7 @@ jobs:
       - name: Build release binary
         run: cargo build --release
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.ref_type == 'tag'
         with:
           files: ./target/wasm32-wasip1/release/zellij-pane-picker.wasm
