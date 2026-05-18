@@ -8,7 +8,7 @@ edition = "2018"
 indexmap = "2.13.1"
 nucleo-matcher = "0.3.1"
 thiserror = "2.0.18"
-zellij-tile = "0.44.0"
+zellij-tile = "0.44.3"
 
 [dev-dependencies]
 insta = "1.47.2"
